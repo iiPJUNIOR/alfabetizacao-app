@@ -160,13 +160,17 @@ function StudentRoomContent() {
             {syllables.map((syllable, index) => (
               <div 
                 key={index}
-                className="flex items-center justify-center min-w-[3em] h-[3em] px-4 sm:px-8 py-2 sm:py-4 rounded-3xl sm:rounded-[2.5rem] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/50"
+                className="flex items-center justify-center min-w-[2em] max-w-full h-auto px-4 sm:px-8 py-4 sm:py-6 rounded-3xl sm:rounded-[2.5rem] bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/50"
                 style={{ 
                   animation: `slideFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.15}s forwards`,
                   opacity: 0
                 }}
               >
-                <span className="text-[12vw] sm:text-[10vw] md:text-[8rem] lg:text-[12rem] font-black tracking-tighter text-slate-800 leading-none" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
+                <span className={`font-black tracking-tighter text-slate-800 leading-none break-all text-center ${
+                  syllable.length > 10 ? 'text-[8vw] sm:text-[6vw] md:text-[4rem] lg:text-[6rem]' :
+                  syllable.length > 5 ? 'text-[10vw] sm:text-[8vw] md:text-[6rem] lg:text-[8rem]' :
+                  'text-[12vw] sm:text-[10vw] md:text-[8rem] lg:text-[12rem]'
+                }`} style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
                   {syllable}
                 </span>
               </div>
