@@ -208,13 +208,17 @@ function TeacherRoomContent() {
               
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Palavra Atual no Quadro</p>
-                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex items-center justify-center min-h-[160px]">
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex items-center justify-center min-h-[160px] w-full overflow-hidden">
                   {roomState.currentWord ? (
-                    <span className="text-5xl md:text-6xl font-black text-slate-800 tracking-widest uppercase">
+                    <span className={`font-black text-slate-800 tracking-widest uppercase text-center break-words break-all ${
+                      roomState.currentWord.length > 15 ? 'text-2xl md:text-3xl' : 
+                      roomState.currentWord.length > 8 ? 'text-4xl md:text-5xl' : 
+                      'text-5xl md:text-6xl'
+                    }`}>
                       {roomState.currentWord}
                     </span>
                   ) : (
-                    <span className="text-xl text-slate-400 font-medium">Nenhuma palavra exibida</span>
+                    <span className="text-xl text-slate-400 font-medium text-center">Nenhuma palavra exibida</span>
                   )}
                 </div>
                 {roomState.currentWord && (
