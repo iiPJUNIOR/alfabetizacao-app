@@ -278,7 +278,7 @@ function TeacherRoomContent() {
           {/* NEW SECTION: Suggestions and History */}
           <div className="lg:col-span-6 xl:col-span-3 flex flex-col gap-6 h-full">
             {/* Suggestions */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 flex flex-col min-h-[250px]">
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 flex flex-col h-full">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-amber-500">
                   <Lightbulb size={20} />
@@ -296,7 +296,7 @@ function TeacherRoomContent() {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2 overflow-y-auto">
+              <div className="flex flex-wrap gap-2">
                 {SUGGESTED_WORDS[difficulty].map((word, idx) => (
                   <button
                     key={idx}
@@ -310,12 +310,12 @@ function TeacherRoomContent() {
             </div>
 
             {/* History */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 space-y-4 min-h-[250px]">
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 space-y-4 h-full">
               <div className="flex items-center gap-2 text-indigo-500">
                 <History size={20} />
                 <h3 className="font-bold text-slate-800">Histórico</h3>
               </div>
-              <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto pr-2">
+              <div className="flex flex-wrap gap-2">
                 {roomState.wordHistory && roomState.wordHistory.length > 0 ? (
                   roomState.wordHistory.map((item, idx) => {
                     let btnClass = "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200";
@@ -341,7 +341,7 @@ function TeacherRoomContent() {
           {/* END NEW SECTION */}
 
           {/* Students List */}
-          <div className="lg:col-span-6 xl:col-span-3 bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col max-h-[600px] xl:max-h-[800px]">
+          <div className="lg:col-span-6 xl:col-span-3 bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
               <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
                 <Users size={24} />
@@ -352,12 +352,12 @@ function TeacherRoomContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+            <div className="space-y-3">
               {roomState.students.length > 0 ? (
                 roomState.students.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <span className="font-bold text-slate-700">{student.name}</span>
-                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-700">
+                  <div key={student.id} className="flex flex-wrap items-center justify-between gap-2 p-4 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden">
+                    <span className="font-bold text-slate-700 truncate min-w-[50px]">{student.name}</span>
+                    <span className="text-[10px] sm:text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">
                       {student.status.toUpperCase()}
                     </span>
                   </div>
