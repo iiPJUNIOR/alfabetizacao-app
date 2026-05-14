@@ -44,22 +44,24 @@ function StudentRoomContent() {
       });
 
       channel
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, (payload: any) => {
-          const newWord = payload.new.current_word || '';
-          setCurrentWord(newWord);
-          setRoomState(prev => prev ? { ...prev, currentWord: newWord } : { currentWord: newWord, wordHistory: [] });
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'room_history', filter: `room_code=eq.${roomCode}` }, async () => {
-           const { data: hData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
-           setRoomState(prev => prev ? { ...prev, wordHistory: hData || [] } : { currentWord: '', wordHistory: hData || [] });
-        })
         .on('broadcast', { event: 'word_update' }, (payload) => {
           const newWord = payload.payload.word || '';
           setCurrentWord(newWord);
-          setRoomState(prev => prev ? { ...prev, currentWord: newWord } : { currentWord: newWord, wordHistory: [] });
+          setRoomState(prev => prev ? { 
+            ...prev, 
+            currentWord: newWord,
+            wordHistory: newWord ? [...prev.wordHistory, { id: Math.random().toString(), word: newWord, status: 'pending' }] : prev.wordHistory
+          } : { currentWord: newWord, wordHistory: newWord ? [{ id: Math.random().toString(), word: newWord, status: 'pending' }] : [] });
         })
         .on('broadcast', { event: 'feedback' }, (payload) => {
-          setFeedbackType(payload.payload.type);
+          const type = payload.payload.type;
+          setFeedbackType(type);
+          setRoomState(prev => {
+            if (!prev || prev.wordHistory.length === 0) return prev;
+            const updated = [...prev.wordHistory];
+            updated[updated.length - 1].status = type;
+            return { ...prev, wordHistory: updated, currentWord: '' };
+          });
           setTimeout(() => {
             setFeedbackType(null);
           }, 2500);

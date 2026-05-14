@@ -68,13 +68,6 @@ function TeacherRoomContent() {
       });
 
       channel
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, (payload: any) => {
-          setRoomState(prev => ({ ...prev, currentWord: payload.new.current_word || '' }));
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'room_history', filter: `room_code=eq.${roomCode}` }, async () => {
-           const { data: hData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
-           setRoomState(prev => ({ ...prev, wordHistory: hData || [] }));
-        })
         .on('presence', { event: 'sync' }, () => {
           const state = channel.presenceState();
           const studentsOnline: Student[] = [];
@@ -109,7 +102,16 @@ function TeacherRoomContent() {
       const word = wordInput.trim().toUpperCase();
       setWordInput('');
       
-      // Add to history
+      const tempId = Math.random().toString();
+
+      // Update local state instantly
+      setRoomState(prev => ({
+        ...prev,
+        currentWord: word,
+        wordHistory: [...prev.wordHistory, { id: tempId, word, status: 'pending' }]
+      }));
+
+      // Add to history DB
       await supabase.from('room_history').insert({
         room_code: roomCode,
         word: word,
@@ -123,7 +125,7 @@ function TeacherRoomContent() {
         payload: { word }
       });
 
-      // Update room
+      // Update room DB
       await supabase.from('rooms').update({
         current_word: word,
         updated_at: new Date().toISOString()
@@ -132,6 +134,8 @@ function TeacherRoomContent() {
   };
 
   const handleClearWord = async () => {
+    setRoomState(prev => ({ ...prev, currentWord: '' }));
+
     await supabase.channel(`room:${roomCode}`).send({
       type: 'broadcast',
       event: 'word_update',
@@ -147,6 +151,14 @@ function TeacherRoomContent() {
   const handleFeedback = async (type: 'correct' | 'wrong') => {
     if (roomState.wordHistory.length > 0 && roomState.currentWord) {
       const lastWord = roomState.wordHistory[roomState.wordHistory.length - 1];
+      
+      // Update local state instantly
+      setRoomState(prev => {
+        const updated = [...prev.wordHistory];
+        updated[updated.length - 1].status = type;
+        return { ...prev, wordHistory: updated, currentWord: '' };
+      });
+
       await supabase.from('room_history').update({ status: type }).eq('id', lastWord.id);
     }
     
