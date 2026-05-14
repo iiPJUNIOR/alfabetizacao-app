@@ -2,12 +2,12 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
+import { supabase } from '@/lib/supabase';
 import { Check, X } from 'lucide-react';
 
 interface RoomState {
   currentWord: string;
-  wordHistory: { word: string; status: string }[];
+  wordHistory: { id: string; word: string; status: string }[];
 }
 
 function StudentRoomContent() {
@@ -16,7 +16,6 @@ function StudentRoomContent() {
   const name = searchParams.get('name');
   const roomCode = searchParams.get('roomCode')?.toUpperCase();
   
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [currentWord, setCurrentWord] = useState<string>('');
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -28,36 +27,51 @@ function StudentRoomContent() {
       return;
     }
 
-    const newSocket = io('http://localhost:3001');
+    const init = async () => {
+      // Fetch initial state
+      const { data: roomData } = await supabase.from('rooms').select('current_word').eq('code', roomCode).single();
+      const { data: historyData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
 
-    newSocket.on('connect', () => {
-      newSocket.emit('join_student', { name, roomCode });
-    });
+      setCurrentWord(roomData?.current_word || '');
+      setRoomState({
+        currentWord: roomData?.current_word || '',
+        wordHistory: historyData || []
+      });
 
-    newSocket.on('word_update', (word: string) => {
-      setCurrentWord(word);
-    });
+      // Setup Realtime
+      const channel = supabase.channel(`room:${roomCode}`, {
+        config: { presence: { key: `student_${name}_${Math.random().toString(36).substring(7)}` } }
+      });
 
-    newSocket.on('room_state_update', (state: RoomState) => {
-      setRoomState(state);
-    });
+      channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, (payload: any) => {
+          const newWord = payload.new.current_word || '';
+          setCurrentWord(newWord);
+          setRoomState(prev => prev ? { ...prev, currentWord: newWord } : { currentWord: newWord, wordHistory: [] });
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'room_history', filter: `room_code=eq.${roomCode}` }, async () => {
+           const { data: hData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
+           setRoomState(prev => prev ? { ...prev, wordHistory: hData || [] } : { currentWord: '', wordHistory: hData || [] });
+        })
+        .on('broadcast', { event: 'feedback' }, (payload) => {
+          setFeedbackType(payload.payload.type);
+          setTimeout(() => {
+            setFeedbackType(null);
+          }, 2500);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channel.track({ type: 'student', name });
+            setIsReady(true);
+          }
+        });
 
-    newSocket.on('feedback', (type: 'correct' | 'wrong') => {
-      setFeedbackType(type);
-      setTimeout(() => {
-        setFeedbackType(null);
-      }, 2500);
-    });
-
-    setSocket(newSocket);
-
-    // Initial ready event
-    newSocket.emit('student_ready', { roomCode });
-    setIsReady(true);
-
-    return () => {
-      newSocket.disconnect();
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
+
+    init();
   }, [name, roomCode, router]);
 
   if (!isReady) {
@@ -68,7 +82,7 @@ function StudentRoomContent() {
     );
   }
 
-  // Dividindo a palavra em sílabas (espaços definidos pelo professor)
+  // Dividindo a palavra em sílabas
   const syllables = currentWord ? currentWord.split(' ').filter(Boolean) : [];
 
   return (
@@ -79,9 +93,9 @@ function StudentRoomContent() {
         <div className="absolute left-0 top-0 bottom-0 w-48 sm:w-64 bg-slate-50/80 backdrop-blur-sm border-r border-slate-100 p-6 overflow-y-auto hidden md:block z-40">
           <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Histórico</h3>
           <div className="space-y-3">
-            {roomState.wordHistory.map((item, idx) => (
+            {roomState.wordHistory.map((item) => (
               <div 
-                key={idx} 
+                key={item.id} 
                 className={`px-4 py-3 rounded-2xl font-bold flex items-center justify-between ${
                   item.status === 'correct' ? 'bg-emerald-100 text-emerald-700' :
                   item.status === 'wrong' ? 'bg-red-100 text-red-700' :

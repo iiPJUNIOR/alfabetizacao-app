@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
-import { Users, Send, CheckCircle2, Circle, History, Lightbulb, Check, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Users, Send, History, Lightbulb, Check, X } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -15,23 +15,16 @@ interface RoomState {
   teacher: { id: string; name: string } | null;
   students: Student[];
   currentWord: string;
-  wordHistory: { word: string; status: string }[];
+  wordHistory: { id: string; word: string; status: string }[];
 }
 
-const SUGGESTED_WORDS = [
-  "CA SA",
-  "BO LA",
-  "MA CA CO",
-  "BA NA NA",
-  "JA NE LA",
-  "SA PA TO",
-  "CA DE LA",
-  "PI PO CA",
-  "GA TO",
-  "LU A",
-  "SO FA",
-  "ME SI NHA"
-];
+type Difficulty = 'Fácil' | 'Média' | 'Difícil';
+
+const SUGGESTED_WORDS: Record<Difficulty, string[]> = {
+  Fácil: ["CA SA", "BO LA", "GA TO", "LU A", "SO FA"],
+  Média: ["MA CA CO", "BA NA NA", "JA NE LA", "SA PA TO"],
+  Difícil: ["ME SI NHA", "CA DE LA", "PI PO CA", "FO GUE TE", "BI CI CLE TA"]
+};
 
 function TeacherRoomContent() {
   const searchParams = useSearchParams();
@@ -39,9 +32,10 @@ function TeacherRoomContent() {
   const name = searchParams.get('name');
   const roomCode = searchParams.get('roomCode')?.toUpperCase();
   
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [roomState, setRoomState] = useState<RoomState>({ teacher: null, students: [], currentWord: '', wordHistory: [] });
   const [wordInput, setWordInput] = useState('');
+  const [difficulty, setDifficulty] = useState<Difficulty>('Fácil');
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!name || !roomCode) {
@@ -49,44 +43,111 @@ function TeacherRoomContent() {
       return;
     }
 
-    const newSocket = io('http://localhost:3001');
+    const init = async () => {
+      // Create or update room in DB
+      await supabase.from('rooms').upsert({
+        code: roomCode,
+        teacher_name: name,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'code' });
 
-    newSocket.on('connect', () => {
-      newSocket.emit('join_teacher', { name, roomCode });
-    });
+      // Fetch initial state
+      const { data: roomData } = await supabase.from('rooms').select('current_word').eq('code', roomCode).single();
+      const { data: historyData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
 
-    newSocket.on('room_state_update', (state: RoomState) => {
-      setRoomState(state);
-    });
+      setRoomState(prev => ({
+        ...prev,
+        teacher: { id: 'teacher', name },
+        currentWord: roomData?.current_word || '',
+        wordHistory: historyData || []
+      }));
 
-    setSocket(newSocket);
+      // Setup Realtime
+      const channel = supabase.channel(`room:${roomCode}`, {
+        config: { presence: { key: 'teacher' } }
+      });
 
-    return () => {
-      newSocket.disconnect();
+      channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `code=eq.${roomCode}` }, (payload: any) => {
+          setRoomState(prev => ({ ...prev, currentWord: payload.new.current_word || '' }));
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'room_history', filter: `room_code=eq.${roomCode}` }, async () => {
+           const { data: hData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
+           setRoomState(prev => ({ ...prev, wordHistory: hData || [] }));
+        })
+        .on('presence', { event: 'sync' }, () => {
+          const state = channel.presenceState();
+          const studentsOnline: Student[] = [];
+          for (const id in state) {
+            const presences = state[id] as any[];
+            presences.forEach(p => {
+              if (p.type === 'student') {
+                studentsOnline.push({ id, name: p.name, status: 'Conectado' });
+              }
+            });
+          }
+          setRoomState(prev => ({ ...prev, students: studentsOnline }));
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channel.track({ type: 'teacher', name });
+            setIsReady(true);
+          }
+        });
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     };
+
+    init();
   }, [name, roomCode, router]);
 
-  const handleSendWord = (e: React.FormEvent) => {
+  const handleSendWord = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (socket && wordInput.trim()) {
-      socket.emit('send_word', { roomCode, word: wordInput.trim().toUpperCase() });
+    if (wordInput.trim()) {
+      const word = wordInput.trim().toUpperCase();
       setWordInput('');
+      
+      // Add to history
+      await supabase.from('room_history').insert({
+        room_code: roomCode,
+        word: word,
+        status: 'pending'
+      });
+
+      // Update room
+      await supabase.from('rooms').update({
+        current_word: word,
+        updated_at: new Date().toISOString()
+      }).eq('code', roomCode);
     }
   };
 
-  const handleClearWord = () => {
-    if (socket) {
-      socket.emit('send_word', { roomCode, word: '' });
-    }
+  const handleClearWord = async () => {
+    await supabase.from('rooms').update({
+      current_word: '',
+      updated_at: new Date().toISOString()
+    }).eq('code', roomCode);
   };
 
-  const handleFeedback = (type: 'correct' | 'wrong') => {
-    if (socket) {
-      socket.emit('send_feedback', { roomCode, type });
+  const handleFeedback = async (type: 'correct' | 'wrong') => {
+    if (roomState.wordHistory.length > 0 && roomState.currentWord) {
+      const lastWord = roomState.wordHistory[roomState.wordHistory.length - 1];
+      await supabase.from('room_history').update({ status: type }).eq('id', lastWord.id);
     }
+    
+    // Broadcast feedback animation via realtime directly
+    await supabase.channel(`room:${roomCode}`).send({
+      type: 'broadcast',
+      event: 'feedback',
+      payload: { type }
+    });
+
+    await handleClearWord();
   };
 
-  if (!roomState) {
+  if (!isReady) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
@@ -192,13 +253,26 @@ function TeacherRoomContent() {
           {/* NEW SECTION: Suggestions and History */}
           <div className="lg:col-span-6 xl:col-span-3 flex flex-col gap-6 h-full">
             {/* Suggestions */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex-1 space-y-4">
-              <div className="flex items-center gap-2 text-amber-500">
-                <Lightbulb size={20} />
-                <h3 className="font-bold text-slate-800">Sugestões de Palavras</h3>
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 flex flex-col min-h-[250px]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <Lightbulb size={20} />
+                  <h3 className="font-bold text-slate-800">Sugestões</h3>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTED_WORDS.map((word, idx) => (
+              <div className="flex gap-2 mb-4 bg-slate-50 p-1 rounded-xl">
+                {(['Fácil', 'Média', 'Difícil'] as Difficulty[]).map(level => (
+                  <button
+                    key={level}
+                    onClick={() => setDifficulty(level)}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${difficulty === level ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 overflow-y-auto">
+                {SUGGESTED_WORDS[difficulty].map((word, idx) => (
                   <button
                     key={idx}
                     onClick={() => setWordInput(word)}
@@ -211,7 +285,7 @@ function TeacherRoomContent() {
             </div>
 
             {/* History */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex-1 space-y-4">
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 space-y-4 min-h-[250px]">
               <div className="flex items-center gap-2 text-indigo-500">
                 <History size={20} />
                 <h3 className="font-bold text-slate-800">Histórico</h3>
@@ -225,7 +299,7 @@ function TeacherRoomContent() {
                     
                     return (
                       <button
-                        key={idx}
+                        key={item.id}
                         onClick={() => setWordInput(item.word)}
                         className={`px-3 py-1.5 text-sm font-bold rounded-xl transition-colors border ${btnClass}`}
                       >
@@ -248,36 +322,26 @@ function TeacherRoomContent() {
                 <Users size={24} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Alunos Online</h2>
+                <h3 className="font-bold text-slate-800">Alunos Online</h3>
                 <p className="text-sm text-slate-500">{roomState.students.length} conectado(s)</p>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-              {roomState.students.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-center space-y-3">
-                  <Circle size={40} className="text-slate-200" />
-                  <p className="text-slate-400 text-sm">Nenhum aluno entrou na sala ainda.</p>
-                </div>
-              ) : (
-                roomState.students.map(student => (
-                  <div key={student.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                    <span className="font-bold text-slate-700 truncate max-w-[150px]">{student.name}</span>
-                    <div className="flex items-center gap-1.5">
-                      {student.status === 'Pronto para aprender' ? (
-                        <>
-                          <CheckCircle2 size={16} className="text-emerald-500" />
-                          <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Pronto</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-                          <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Conectado</span>
-                        </>
-                      )}
-                    </div>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {roomState.students.length > 0 ? (
+                roomState.students.map((student) => (
+                  <div key={student.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <span className="font-bold text-slate-700">{student.name}</span>
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-700">
+                      {student.status.toUpperCase()}
+                    </span>
                   </div>
                 ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-slate-400 font-medium">Aguardando alunos entrarem...</p>
+                  <p className="text-sm text-slate-400 mt-2">Compartilhe o código da sala.</p>
+                </div>
               )}
             </div>
           </div>
