@@ -20,10 +20,16 @@ interface RoomState {
 
 type Difficulty = 'Fácil' | 'Média' | 'Difícil';
 
-const SUGGESTED_WORDS: Record<Difficulty, string[]> = {
-  Fácil: ["CA SA", "BO LA", "GA TO", "LU A", "SO FA"],
-  Média: ["MA CA CO", "BA NA NA", "JA NE LA", "SA PA TO"],
-  Difícil: ["ME SI NHA", "CA DE LA", "PI PO CA", "FO GUE TE", "BI CI CLE TA"]
+const WORD_POOL: Record<Difficulty, string[]> = {
+  Fácil: [
+    "CA SA", "BO LA", "GA TO", "LU A", "SO FA", "MA LA", "BO LO", "DA DO", "FA CA", "JA CA", "SA PO", "TA TU", "VA CA", "PI A", "MA O", "PE", "U VA", "O VO", "PA O", "CE U"
+  ],
+  Média: [
+    "MA CA CO", "BA NA NA", "JA NE LA", "SA PA TO", "CA VA LO", "CA BE LO", "BO NE CA", "CA DE I RA", "TE LE FO NE", "GI RA FA", "JA CA RE", "TO MA TE", "PE TE CA", "GA LI NHA", "A MO RA"
+  ],
+  Difícil: [
+    "ME SI NHA", "CA DE LA", "PI PO CA", "FO GUE TE", "BI CI CLE TA", "COM PU TA DOR", "LI QUI DI FI CA DOR", "ES CO VA", "ES PE LHO", "ME LAN CI A", "CHO CO LA TE", "HI PO PO TA MO", "TA RA N TU LA", "AR QUI TE TU RA"
+  ]
 };
 
 function TeacherRoomContent() {
@@ -35,7 +41,14 @@ function TeacherRoomContent() {
   const [roomState, setRoomState] = useState<RoomState>({ teacher: null, students: [], currentWord: '', wordHistory: [] });
   const [wordInput, setWordInput] = useState('');
   const [difficulty, setDifficulty] = useState<Difficulty>('Fácil');
+  const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
   const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const pool = WORD_POOL[difficulty];
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    setCurrentSuggestions(shuffled.slice(0, 5));
+  }, [difficulty]);
 
   useEffect(() => {
     if (!name || !roomCode) {
@@ -172,6 +185,24 @@ function TeacherRoomContent() {
     await handleClearWord();
   };
 
+  const handleSuggestionClick = (word: string) => {
+    setWordInput(word);
+    
+    // Swap the clicked suggestion with a new random one from the pool
+    const pool = WORD_POOL[difficulty];
+    const available = pool.filter(w => !currentSuggestions.includes(w) && w !== word);
+    if (available.length > 0) {
+      const newWord = available[Math.floor(Math.random() * available.length)];
+      setCurrentSuggestions(prev => prev.map(w => w === word ? newWord : w));
+    }
+  };
+
+  const handleShuffleSuggestions = () => {
+    const pool = WORD_POOL[difficulty];
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    setCurrentSuggestions(shuffled.slice(0, 5));
+  };
+
   if (!isReady) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -288,6 +319,13 @@ function TeacherRoomContent() {
                   <Lightbulb size={20} />
                   <h3 className="font-bold text-slate-800">Sugestões</h3>
                 </div>
+                <button 
+                  onClick={handleShuffleSuggestions}
+                  className="text-xs text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg font-bold transition-colors border border-amber-200"
+                  title="Atualizar sugestões"
+                >
+                  Novas
+                </button>
               </div>
               <div className="flex gap-2 mb-4 bg-slate-50 p-1 rounded-xl">
                 {(['Fácil', 'Média', 'Difícil'] as Difficulty[]).map(level => (
@@ -301,10 +339,10 @@ function TeacherRoomContent() {
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED_WORDS[difficulty].map((word, idx) => (
+                {currentSuggestions.map((word, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setWordInput(word)}
+                    onClick={() => handleSuggestionClick(word)}
                     className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-bold rounded-xl transition-colors border border-amber-200"
                   >
                     {word}
