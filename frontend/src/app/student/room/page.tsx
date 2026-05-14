@@ -53,6 +53,11 @@ function StudentRoomContent() {
            const { data: hData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
            setRoomState(prev => prev ? { ...prev, wordHistory: hData || [] } : { currentWord: '', wordHistory: hData || [] });
         })
+        .on('broadcast', { event: 'word_update' }, (payload) => {
+          const newWord = payload.payload.word || '';
+          setCurrentWord(newWord);
+          setRoomState(prev => prev ? { ...prev, currentWord: newWord } : { currentWord: newWord, wordHistory: [] });
+        })
         .on('broadcast', { event: 'feedback' }, (payload) => {
           setFeedbackType(payload.payload.type);
           setTimeout(() => {

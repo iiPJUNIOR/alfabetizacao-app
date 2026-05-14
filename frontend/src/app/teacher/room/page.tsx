@@ -116,6 +116,13 @@ function TeacherRoomContent() {
         status: 'pending'
       });
 
+      // Broadcast word
+      await supabase.channel(`room:${roomCode}`).send({
+        type: 'broadcast',
+        event: 'word_update',
+        payload: { word }
+      });
+
       // Update room
       await supabase.from('rooms').update({
         current_word: word,
@@ -125,6 +132,12 @@ function TeacherRoomContent() {
   };
 
   const handleClearWord = async () => {
+    await supabase.channel(`room:${roomCode}`).send({
+      type: 'broadcast',
+      event: 'word_update',
+      payload: { word: '' }
+    });
+
     await supabase.from('rooms').update({
       current_word: '',
       updated_at: new Date().toISOString()
