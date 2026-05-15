@@ -375,12 +375,12 @@ function TeacherRoomContent() {
             </div>
 
             {/* History */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 space-y-4 h-full">
-              <div className="flex items-center gap-2 text-indigo-500">
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex-1 flex flex-col max-h-[350px]">
+              <div className="flex items-center gap-2 text-indigo-500 mb-4 flex-shrink-0">
                 <History size={20} />
                 <h3 className="font-bold text-slate-800">Histórico</h3>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 items-start content-start">
                 {roomState.wordHistory && roomState.wordHistory.length > 0 ? (
                   roomState.wordHistory.map((item, idx) => {
                     let btnClass = "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200";
