@@ -55,14 +55,12 @@ function TeacherRoomContent() {
       }, { onConflict: 'code' });
 
       // Fetch initial state
-      const { data: roomData } = await supabase.from('rooms').select('current_word, created_at').eq('code', roomCode).single();
+      const { data: roomData, error: roomError } = await supabase.from('rooms').select('current_word').eq('code', roomCode).single();
       const { data: historyData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
 
-      if (roomData?.created_at) {
-        setSessionStartTime(new Date(roomData.created_at));
-      } else {
-        setSessionStartTime(new Date());
-      }
+      if (roomError) console.error("Room fetch error:", roomError);
+
+      setSessionStartTime(new Date());
 
       setRoomState(prev => ({
         ...prev,
