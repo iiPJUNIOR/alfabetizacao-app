@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Users, Send, History, Lightbulb, Check, X } from 'lucide-react';
+import { Users, Send, History, Lightbulb, Check, X, Clock } from 'lucide-react';
+import { WORD_POOL, Difficulty } from '@/lib/wordBank';
 
 interface Student {
   id: string;
@@ -17,8 +18,6 @@ interface RoomState {
   currentWord: string;
   wordHistory: { id: string; word: string; status: string }[];
 }
-import { WORD_POOL, Difficulty } from '@/lib/wordBank';
-import { Clock, Users, Lightbulb, History, Check, X } from 'lucide-react';
 
 function TeacherRoomContent() {
   const searchParams = useSearchParams();
