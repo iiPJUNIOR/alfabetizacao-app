@@ -22,13 +22,26 @@ type Difficulty = 'Fácil' | 'Média' | 'Difícil';
 
 const WORD_POOL: Record<Difficulty, string[]> = {
   Fácil: [
-    "CA SA", "BO LA", "GA TO", "LU A", "SO FA", "MA LA", "BO LO", "DA DO", "FA CA", "JA CA", "SA PO", "TA TU", "VA CA", "PI A", "MA O", "PE", "U VA", "O VO", "PA O", "CE U"
+    "CA SA", "BO LA", "GA TO", "LU A", "SO FA", "MA LA", "BO LO", "DA DO", "FA CA", "JA CA", 
+    "SA PO", "TA TU", "VA CA", "PI A", "MÃO", "PÉ", "U VA", "O VO", "PÃO", "CÉU", 
+    "DE DO", "FI GO", "GA LO", "JA RRA", "LA TA", "MA TO", "NA VE", "PA TO", "RA TO", "SA LA", 
+    "SA PA", "TE LA", "VI LA", "FOU CE", "DO CE", "REDE", "BOTA", "COLA", "FOGO", "GELO"
   ],
   Média: [
-    "MA CA CO", "BA NA NA", "JA NE LA", "SA PA TO", "CA VA LO", "CA BE LO", "BO NE CA", "CA DE I RA", "TE LE FO NE", "GI RA FA", "JA CA RE", "TO MA TE", "PE TE CA", "GA LI NHA", "A MO RA"
+    "MA CA CO", "BA NA NA", "JA NE LA", "SA PA TO", "CA VA LO", "CA BE LO", "BO NE CA", "CA DE I RA", 
+    "TE LE FO NE", "GI RA FA", "JA CA RÉ", "TO MA TE", "PE TE CA", "GA LI NHA", "A MO RA", "CA CHOR RO", 
+    "PÁS SA RO", "A BE LHA", "CO E LHO", "PLA NE TA", "ES TRE LA", "BRA ÇO", "PRA TO", "TREM", 
+    "BLU SA", "CLU BE", "BI CI CLE TA", "TRU FA", "LIV RO", "FRU TA", "PRE GO", "BRIN CO", 
+    "CRA VO", "FRO TA", "GRA MA", "PRA CA", "VID RO", "LI MÃO", "A MI GO", "CO LE GA"
   ],
   Difícil: [
-    "ME SI NHA", "CA DE LA", "PI PO CA", "FO GUE TE", "BI CI CLE TA", "COM PU TA DOR", "LI QUI DI FI CA DOR", "ES CO VA", "ES PE LHO", "ME LAN CI A", "CHO CO LA TE", "HI PO PO TA MO", "TA RA N TU LA", "AR QUI TE TU RA"
+    "PA RA LE LE PÍ PE DO", "O TOR RI NO LA RIN GO LO GIS TA", "LI QÜI DI FI CA DOR", "ME LAN CI A", 
+    "IN CONS TI TU CIO NAL", "PNEU MÁ TI CO", "EX TRA OR DI NÁ RIO", "JU RIS PRU DÊN CIA", 
+    "HE LI CÓP TE RO", "AS TRO NAU TA", "I NA CEI TÁ VEL", "IN TE LI GÊN CIA", "PRO CRAS TI NA ÇÃO", 
+    "LÂM PA DA", "Ô NI BUS", "ÁR VO RE", "MÁ GI CO", "ÚL TI MO", "PÂN CRE AS", "XÍ CA RA", 
+    "Ó CU LOS", "SÍM BO LO", "PLÁS TI CO", "MÚ SI CA", "PÁS SA RO", "AR QUI TE TU RA", "FO GUE TE",
+    "PÊN DU LO", "CÉ LU LA", "MÁ QUI NA", "FÍ SI CA", "QUÍ MI CA", "BÚS SO LA", "PÉ TA LA", 
+    "VÍ TI MA", "LÁ GRI MA", "PÁ GI NA", "XÁ CA RA", "SÁ BA DO", "RÚS TI CO", "E CLIP SE"
   ]
 };
 
@@ -47,7 +60,7 @@ function TeacherRoomContent() {
   useEffect(() => {
     const pool = WORD_POOL[difficulty];
     const shuffled = [...pool].sort(() => 0.5 - Math.random());
-    setCurrentSuggestions(shuffled.slice(0, 5));
+    setCurrentSuggestions(shuffled.slice(0, 10));
   }, [difficulty]);
 
   useEffect(() => {
@@ -200,7 +213,7 @@ function TeacherRoomContent() {
   const handleShuffleSuggestions = () => {
     const pool = WORD_POOL[difficulty];
     const shuffled = [...pool].sort(() => 0.5 - Math.random());
-    setCurrentSuggestions(shuffled.slice(0, 5));
+    setCurrentSuggestions(shuffled.slice(0, 10));
   };
 
   if (!isReady) {
