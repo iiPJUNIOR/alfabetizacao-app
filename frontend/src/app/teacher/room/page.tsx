@@ -380,7 +380,7 @@ function TeacherRoomContent() {
                 <History size={20} />
                 <h3 className="font-bold text-slate-800">Histórico</h3>
               </div>
-              <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 items-start content-start">
+              <div className="flex flex-wrap gap-2 overflow-y-auto pr-2 flex-1 items-start content-start scrollbar-hide">
                 {roomState.wordHistory && roomState.wordHistory.length > 0 ? (
                   roomState.wordHistory.map((item, idx) => {
                     let btnClass = "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200";
@@ -417,7 +417,7 @@ function TeacherRoomContent() {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto scrollbar-hide">
               {roomState.students.length > 0 ? (
                 roomState.students.map((student) => (
                   <div key={student.id} className="flex flex-wrap items-center justify-between gap-2 p-4 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden">
