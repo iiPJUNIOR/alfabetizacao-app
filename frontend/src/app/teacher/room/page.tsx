@@ -18,6 +18,7 @@ interface RoomState {
   wordHistory: { id: string; word: string; status: string }[];
 }
 import { WORD_POOL, Difficulty } from '@/lib/wordBank';
+import { Clock, Users, Lightbulb, History, Check, X } from 'lucide-react';
 
 function TeacherRoomContent() {
   const searchParams = useSearchParams();
@@ -30,6 +31,8 @@ function TeacherRoomContent() {
   const [difficulty, setDifficulty] = useState<Difficulty>('Fácil');
   const [currentSuggestions, setCurrentSuggestions] = useState<string[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [sessionTimeStr, setSessionTimeStr] = useState('00:00');
 
   useEffect(() => {
     const pool = WORD_POOL[difficulty];
@@ -52,8 +55,14 @@ function TeacherRoomContent() {
       }, { onConflict: 'code' });
 
       // Fetch initial state
-      const { data: roomData } = await supabase.from('rooms').select('current_word').eq('code', roomCode).single();
+      const { data: roomData } = await supabase.from('rooms').select('current_word, created_at').eq('code', roomCode).single();
       const { data: historyData } = await supabase.from('room_history').select('*').eq('room_code', roomCode).order('created_at', { ascending: true });
+
+      if (roomData?.created_at) {
+        setSessionStartTime(new Date(roomData.created_at));
+      } else {
+        setSessionStartTime(new Date());
+      }
 
       setRoomState(prev => ({
         ...prev,
@@ -95,6 +104,27 @@ function TeacherRoomContent() {
 
     init();
   }, [name, roomCode, router]);
+
+  useEffect(() => {
+    if (!sessionStartTime) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const diffMs = now.getTime() - sessionStartTime.getTime();
+      const diffSecs = Math.floor(diffMs / 1000);
+      const m = Math.floor(diffSecs / 60).toString().padStart(2, '0');
+      const s = (diffSecs % 60).toString().padStart(2, '0');
+      
+      if (Math.floor(diffSecs / 3600) > 0) {
+        const h = Math.floor(diffSecs / 3600).toString().padStart(2, '0');
+        setSessionTimeStr(`${h}:${m}:${s}`);
+      } else {
+        setSessionTimeStr(`${m}:${s}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sessionStartTime]);
 
   const handleSendWord = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,12 +238,21 @@ function TeacherRoomContent() {
         {/* Header */}
         <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Painel do Professor</h1>
-            <p className="text-slate-500">Olá, {name}</p>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Painel do Professor</h1>
+            <p className="text-slate-500 font-medium">Olá, {name}</p>
           </div>
-          <div className="bg-indigo-50 px-6 py-3 rounded-2xl flex items-center gap-3">
-            <span className="text-indigo-600 font-medium text-sm uppercase tracking-wider">Código da Sala</span>
-            <span className="text-2xl font-bold text-indigo-700 tracking-widest">{roomCode}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl">
+              <Clock size={18} className="text-slate-400" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Tempo da Sala</span>
+                <span className="text-sm font-bold text-slate-700 leading-none">{sessionTimeStr}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-indigo-50 px-6 py-3 rounded-2xl">
+              <span className="text-indigo-600 font-bold tracking-widest text-sm uppercase">Código da Sala</span>
+              <span className="text-3xl font-black text-indigo-700">{roomCode}</span>
+            </div>
           </div>
         </div>
 
